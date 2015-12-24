@@ -14,12 +14,10 @@ class Connection  {
         void start() {
             if (verbose) std::cout << "connected\n";
         }
-        boost::asio::streambuf& in() {return in_;};
-        boost::asio::streambuf& out(){return out_;};
+        boost::asio::streambuf& buffer() {return buffer_;};
 
     private:
-        boost::asio::streambuf in_;
-        boost::asio::streambuf out_;
+        boost::asio::streambuf buffer_;
         boost::asio::ip::tcp::socket socket_;
 };
 class Proxy : public boost::enable_shared_from_this<Proxy>{
@@ -46,7 +44,7 @@ class Proxy : public boost::enable_shared_from_this<Proxy>{
 
         void setupLocalRead(){
             if (verbose) std::cout << "setupLocalRead\n";
-            boost::asio::streambuf::mutable_buffers_type mutableBuffer = from_.in().prepare(1024);
+            boost::asio::streambuf::mutable_buffers_type mutableBuffer = from_.buffer().prepare(1024);
             from_.socket().async_read_some(mutableBuffer,boost::bind(&Proxy::handleLocalRead, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
         }
 
@@ -57,8 +55,8 @@ class Proxy : public boost::enable_shared_from_this<Proxy>{
                 from_.socket().close();
                 return;
             }
-            from_.in().commit(bytes);
-            boost::asio::async_write(to_.socket(), from_.in(), boost::bind(&Proxy::handleLocalWrite, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+            from_.buffer().commit(bytes);
+            boost::asio::async_write(to_.socket(), from_.buffer(), boost::bind(&Proxy::handleLocalWrite, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
         }
 
         void handleLocalWrite(const boost::system::error_code& error, size_t bytes){
@@ -73,7 +71,7 @@ class Proxy : public boost::enable_shared_from_this<Proxy>{
 
         void setupRemoteRead(){
             if (verbose) std::cout << "setupRemoteRead\n";
-            boost::asio::streambuf::mutable_buffers_type mutableBuffer = to_.in().prepare(1024);
+            boost::asio::streambuf::mutable_buffers_type mutableBuffer = to_.buffer().prepare(1024);
             to_.socket().async_read_some(mutableBuffer, boost::bind(&Proxy::handleRemoteRead, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
         }
 
@@ -85,8 +83,8 @@ class Proxy : public boost::enable_shared_from_this<Proxy>{
                 return;
             }
             if (verbose) std::cout << "read remote connection " << bytes << "\n";
-            to_.in().commit(bytes);
-            boost::asio::async_write(from_.socket(), to_.in(), boost::bind(&Proxy::handleRemoteWrite, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+            to_.buffer().commit(bytes);
+            boost::asio::async_write(from_.socket(), to_.buffer(), boost::bind(&Proxy::handleRemoteWrite, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
 
         }
         void handleRemoteWrite(const boost::system::error_code& error, size_t bytes) {
