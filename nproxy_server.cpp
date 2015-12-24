@@ -41,10 +41,11 @@ class Proxy : public boost::enable_shared_from_this<Proxy>{
             boost::asio::async_read(from_.socket(), from_.in(), boost::bind(&Proxy::handleLocalRemote, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
         }
         void handleReadRemote(const boost::system::error_code& error, size_t bytes){
-            std::cout << "read remote connection\n";
+            std::cout << "read remote connection " << bytes << "\n";
+
         }
         void handleLocalRemote(const boost::system::error_code& error, size_t bytes){
-            std::cout << "read remote connection\n";
+            std::cout << "read localconnection " << bytes << "\n";
         }
     private:
         Connection  from_;
