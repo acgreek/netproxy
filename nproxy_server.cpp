@@ -36,17 +36,62 @@ class Proxy : public boost::enable_shared_from_this<Proxy>{
             return from_.socket();
         }
         void handle_remote_connect(const boost::system::error_code& error) {
-            std::cout << "made remote connection\n";
-            boost::asio::async_read(to_.socket(), to_.in(), boost::bind(&Proxy::handleReadRemote, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
-            boost::asio::async_read(from_.socket(), from_.in(), boost::bind(&Proxy::handleLocalRemote, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+            if (error) {
+                std::cout << "remote connection error  :" << error<< "\n";
+                return;
+            }
+            std::cout << "remote connection success\n";
+            setupLocalRead();
+            setupRemoteRead();
         }
-        void handleReadRemote(const boost::system::error_code& error, size_t bytes){
+
+        void setupLocalRead(){
+            std::cout << "setupLocalRead\n";
+            boost::asio::streambuf::mutable_buffers_type mutableBuffer = from_.in().prepare(1024);
+            from_.socket().async_read_some(mutableBuffer,boost::bind(&Proxy::handleLocalRead, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+        }
+
+        void handleLocalRead(const boost::system::error_code& error, size_t bytes){
+            if (error) {
+                std::cout << "read local error :" << error<< "\n";
+                return;
+            }
+            from_.in().commit(bytes);
+            boost::asio::async_write(to_.socket(), from_.in(), boost::bind(&Proxy::handleLocalWrite, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+        }
+
+        void handleLocalWrite(const boost::system::error_code& error, size_t bytes){
+            if (error) {
+                std::cout << "write local error :" << error<< "\n";
+                return;
+            }
+            setupLocalRead();
+        }
+
+        void setupRemoteRead(){
+            std::cout << "setupRemoteRead\n";
+            boost::asio::streambuf::mutable_buffers_type mutableBuffer = to_.in().prepare(1024);
+            to_.socket().async_read_some(mutableBuffer, boost::bind(&Proxy::handleRemoteRead, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
+        }
+
+        void handleRemoteRead(const boost::system::error_code& error, size_t bytes){
+            if (error) {
+                std::cout << "read remote error :" << error<< "\n";
+                return;
+            }
             std::cout << "read remote connection " << bytes << "\n";
+            to_.in().commit(bytes);
+            boost::asio::async_write(from_.socket(), to_.in(), boost::bind(&Proxy::handleRemoteWrite, shared_from_this(), boost::asio::placeholders::error ,boost::asio::placeholders::bytes_transferred));
 
         }
-        void handleLocalRemote(const boost::system::error_code& error, size_t bytes){
-            std::cout << "read localconnection " << bytes << "\n";
+        void handleRemoteWrite(const boost::system::error_code& error, size_t bytes) {
+            if (error) {
+                std::cout << "write remote error :" << error<< "\n";
+                return;
+            }
+            setupRemoteRead();
         }
+
     private:
         Connection  from_;
         Connection  to_;
