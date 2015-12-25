@@ -1,11 +1,13 @@
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <boost/asio.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
 #include <boost/program_options.hpp>
 #include <boost/log/trivial.hpp>
+#include <boost/log/utility/setup/from_stream.hpp>
 
 class Connection  {
     public:
@@ -143,6 +145,7 @@ int main(int argc, char * argv[]) {
     unsigned short listenPort = 9000;
     std::string remoteHost= "127.0.0.1";
     std::string remotePort = "9001";
+    std::string loggingSettingsFile;
     // Declare the supported options.
     boost::program_options::options_description desc("Allowed options");
     desc.add_options()
@@ -150,6 +153,7 @@ int main(int argc, char * argv[]) {
         ("port,p", boost::program_options::value<unsigned short>(&listenPort)->default_value(9000), "listen port")
         ("remoteport,P", boost::program_options::value<std::string>(&remotePort)->default_value("9001"), "remote port to connect to")
         ("remotehost,H", boost::program_options::value<std::string>(&remoteHost)->default_value("127.0.0.1"), "remote host to connect to")
+        ("logsettings,l", boost::program_options::value<std::string>(&loggingSettingsFile)->default_value("logging.ini"), "path and file name of logging settings file")
         ;
     boost::program_options::variables_map vm;
     boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
@@ -157,6 +161,10 @@ int main(int argc, char * argv[]) {
     if (vm.count("help")) {
         std::cout << desc << "\n";
         return 1;
+    }
+    std::ifstream file(loggingSettingsFile.c_str());
+    if (file.good()) {
+        boost::log::init_from_stream(file);
     }
     boost::asio::io_service io_service;
     Server server(io_service, listenPort, remoteHost, remotePort);
