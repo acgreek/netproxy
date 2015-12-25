@@ -3,6 +3,8 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
+#include <boost/program_options.hpp>
+
 
 bool verbose= false;
 
@@ -135,10 +137,26 @@ class Server{
         boost::shared_ptr<Proxy> new_session_;
 };
 
-int main() {
+int main(int argc, char * argv[]) {
     unsigned short listenPort = 9000;
     std::string remoteHost= "127.0.0.1";
     std::string remotePort = "9001";
+    // Declare the supported options.
+    boost::program_options::options_description desc("Allowed options");
+    desc.add_options()
+        ("help,h", "produce help message")
+        ("port,p", boost::program_options::value<unsigned short>(&listenPort)->default_value(9000), "listen port")
+        ("remoteport,P", boost::program_options::value<std::string>(&remotePort)->default_value("9001"), "remote port to connect to")
+        ("remotehost,H", boost::program_options::value<std::string>(&remoteHost)->default_value("127.0.0.1"), "remote host to connect to")
+        ;
+
+    boost::program_options::variables_map vm;
+    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), vm);
+    boost::program_options::notify(vm);
+    if (vm.count("help")) {
+        std::cout << desc << "\n";
+        return 1;
+    }
     boost::asio::io_service io_service;
     Server server(io_service, listenPort, remoteHost, remotePort);
     server.start();
